@@ -1,0 +1,33 @@
+name: Build guide
+on:
+  schedule: [{ cron: "17 2 * * *" }]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: guide
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { repository: iptv-org/epg, path: epg }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: cd epg && npm ci
+      - run: python3 make_channels.py epg
+      - name: Grab guide (a failing site does not stop the rest)
+        run: |
+          cd epg
+          npm run grab --- --channels=../channels.xml --days=3 --maxConnections=8 --timeout=30000 --output=../guide.xml --gzip || true
+      - name: Check output
+        run: |
+          test -s guide.xml
+          echo "channels in guide: $(grep -c '<channel ' guide.xml)  programmes: $(grep -c '<programme ' guide.xml)"
+      - name: Publish to the guide branch
+        run: |
+          mkdir out && cp guide.xml out/ && gzip -9 -k out/guide.xml
+          cd out && git init -q -b guide && git add . 
+          git -c user.name=guide-bot -c user.email=guide-bot@users.noreply.github.com commit -qm "guide $(date -u +%F)"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" guide
