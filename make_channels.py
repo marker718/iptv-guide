@@ -11,7 +11,8 @@ from pathlib import Path
 EPG = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("epg")
 BASE = "https://iptv-org.github.io/iptv/"
 LISTS = {"us": "countries/us.m3u", "il": "countries/il.m3u", "sports": "categories/sports.m3u", "eng": "languages/eng.m3u"}
-US_SITES = ["tvtv.us", "tvguide.com"]
+# tvtv.us returned 404 for every request in the first run, so it is left out.
+US_SITES = ["tvguide.com", "tvpassport.com", "bein.com", "nhl.com"]
 IL_SITES = ["yes.co.il", "mako.co.il", "9tv.co.il"]
 MAX_SPORTS_ENG = 100000
 
@@ -45,12 +46,13 @@ print(f"wanted ids: {len(wanted)} (US {len(us_ids)}, English sports {len(sports_
 
 root = ET.Element("channels")
 seen = set()
+used_ids = set()
 
 def add(ch, xid):
     key = (ch.get("site"), ch.get("site_id"), xid)
-    if key in seen:
+    if key in seen or xid in used_ids:  # one source per channel id, first site wins
         return
-    seen.add(key)
+    seen.add(key); used_ids.add(xid)
     e = ET.SubElement(root, "channel", {"site": ch.get("site"), "site_id": ch.get("site_id"), "lang": ch.get("lang", "en"), "xmltv_id": xid})
     e.text = ch.text
 
