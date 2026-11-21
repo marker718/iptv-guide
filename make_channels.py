@@ -12,7 +12,7 @@ EPG = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("epg")
 BASE = "https://iptv-org.github.io/iptv/"
 LISTS = {"us": "countries/us.m3u", "il": "countries/il.m3u", "sports": "categories/sports.m3u", "eng": "languages/eng.m3u"}
 # tvtv.us returned 404 for every request in the first run, so it is left out.
-US_SITES = ["tvguide.com", "tvpassport.com", "bein.com", "nhl.com"]
+US_SITES = ["tvguide.com", "tvpassport.com", "ontvtonight.com", "bein.com", "nhl.com"]
 IL_SITES = ["yes.co.il", "mako.co.il", "9tv.co.il"]
 MAX_SPORTS_ENG = 100000
 
