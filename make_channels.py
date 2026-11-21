@@ -36,6 +36,15 @@ def norm(s):
     s = re.sub(r"\b(hd|sd|fhd|tv|channel|ערוץ)\b", " ", s)
     return re.sub(r"[^0-9a-z֐-׿]", "", s)
 
+import json
+def api(name):
+    with urllib.request.urlopen("https://iptv-org.github.io/api/" + name, timeout=90) as r:
+        return json.load(r)
+try:
+    GUIDES = api("guides.json")
+except Exception as e:
+    print("guides.json unavailable:", e); GUIDES = []
+
 pl = {k: parse(fetch(v)) for k, v in LISTS.items()}
 eng_ids = {i for i, _ in pl["eng"]}
 sports_en = {i for i, _ in pl["sports"] if i in eng_ids}
@@ -69,6 +78,34 @@ for site in US_SITES + IL_SITES:
                     add(ch, m); kept += 1
         print(f"{site}: kept {kept}")
 
+# 4. Authoritative mapping from iptv-org/api guides.json: any wanted/Israeli channel with a known site id.
+il_by_chan = {i for i, _ in pl["il"]}
+SITE_OK = set(US_SITES + IL_SITES + ["tvpassport.com", "ontvtonight.com", "zap2it.com", "directv.com", "tvtv.us"])
+api_added = 0
+by_site = {}
+for g in GUIDES:
+    cid = g.get("channel"); site = g.get("site")
+    if not cid or not site or not g.get("site_id"):
+        continue
+    xid = cid + ("@" + g["feed"] if g.get("feed") else "")
+    base = cid
+    if base in used_ids or (cid not in wanted and cid not in il_by_chan):
+        continue
+    if site in ("tvtv.us",):  # 404s in CI
+        continue
+    by_site.setdefault(site, []).append(g)
+# prefer sites already known to work, then everything else
+order = US_SITES + IL_SITES
+for site in sorted(by_site, key=lambda x: (order.index(x) if x in order else 99, x)):
+    for g in by_site[site]:
+        if g["channel"] in used_ids:
+            continue
+        class C: pass
+        c = {"site": site, "site_id": g["site_id"], "lang": g.get("lang", "en")}
+        e = ET.SubElement(root, "channel", {"site": site, "site_id": g["site_id"], "lang": g.get("lang", "en"), "xmltv_id": g["channel"]})
+        e.text = g.get("site_name") or g["channel"]
+        used_ids.add(g["channel"]); seen.add((site, g["site_id"], g["channel"])); api_added += 1
+print("added from api guides.json:", api_added, {k: len(v) for k, v in by_site.items()})
 ET.indent(root)
 ET.ElementTree(root).write("channels.xml", encoding="utf-8", xml_declaration=True)
 print("channels written:", len(seen))
